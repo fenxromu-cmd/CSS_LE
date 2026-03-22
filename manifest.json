@@ -1,0 +1,46 @@
+{
+  "name": "Mon Journal — Sécurité Chariots",
+  "short_name": "MonJournal",
+  "description": "Journal d'activités, tâches et projets — Sécurité Chariots",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#185FA5",
+  "orientation": "portrait-primary",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "business"],
+  "shortcuts": [
+    {
+      "name": "Nouvelle activité",
+      "short_name": "Activité",
+      "description": "Saisir une activité du jour",
+      "url": "./index.html#jour"
+    },
+    {
+      "name": "Mes tâches",
+      "short_name": "Tâches",
+      "description": "Voir le tableau Kanban",
+      "url": "./index.html#taches"
+    },
+    {
+      "name": "Mes projets",
+      "short_name": "Projets",
+      "description": "Voir les dossiers projets",
+      "url": "./index.html#projets"
+    }
+  ]
+}
