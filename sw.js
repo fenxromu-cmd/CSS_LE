@@ -1,14 +1,10 @@
 // ============================================================
-// sw.js — Service Worker avec mise à jour automatique
-// Le numéro de version DOIT correspondre à APP_VERSION dans index.html
-// bump_version.py met à jour les deux fichiers simultanément
+// sw.js — Service Worker avec mise à jour et purge de cache
+// VERSION doit correspondre à APP_VERSION dans index.html
+// bump_version.py synchronise les deux automatiquement
 // ============================================================
 
-<<<<<<< HEAD
-const VERSION  = '8.0.0';          // ← synchronisé avec APP_VERSION
-=======
-const VERSION  = '7.0.0';          // ← synchronisé avec APP_VERSION
->>>>>>> 40ad5fe8350205bc1b616b8b27a5da848f12274e
+const VERSION  = '8.0.2';
 const CACHE    = `lia-v${VERSION}`;
 const ASSETS   = [
   './index.html',
@@ -17,27 +13,30 @@ const ASSETS   = [
   './icon-512.png'
 ];
 
-// ── Installation ─────────────────────────────────────────────
+// ── Installation : mise en cache des ressources ──────────────
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
       .then(cache => cache.addAll(ASSETS))
-      .then(() => self.skipWaiting())   // activer immédiatement sans attendre
+      .then(() => self.skipWaiting())
   );
 });
 
-// ── Activation : supprimer les anciens caches ────────────────
+// ── Activation : PURGER tous les anciens caches ──────────────
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
         keys
-          .filter(k => k !== CACHE)     // tous les caches sauf le nouveau
-          .map(k => caches.delete(k))
+          .filter(k => k !== CACHE)
+          .map(k => {
+            console.log('[SW] Suppression ancien cache :', k);
+            return caches.delete(k);
+          })
       ))
-      .then(() => self.clients.claim()) // prendre le contrôle immédiatement
+      .then(() => self.clients.claim())
       .then(() => {
-        // Notifier tous les onglets ouverts qu'une mise à jour est active
+        // Notifier tous les onglets : nouvelle version active
         self.clients.matchAll({ type: 'window' }).then(clients => {
           clients.forEach(client =>
             client.postMessage({ type: 'SW_UPDATED', version: VERSION })
@@ -47,11 +46,27 @@ self.addEventListener('activate', e => {
   );
 });
 
-// ── Fetch : réseau en priorité pour index.html ───────────────
+// ── Message depuis la page : forcer l'activation immédiate ───
+self.addEventListener('message', e => {
+  if (e.data?.type === 'SKIP_WAITING') {
+    console.log('[SW] SKIP_WAITING reçu — activation forcée');
+    self.skipWaiting();
+  }
+  // Purge complète du cache sur demande
+  if (e.data?.type === 'CLEAR_CACHE') {
+    caches.keys().then(keys =>
+      Promise.all(keys.map(k => caches.delete(k)))
+    ).then(() => {
+      e.source?.postMessage({ type: 'CACHE_CLEARED' });
+    });
+  }
+});
+
+// ── Fetch ────────────────────────────────────────────────────
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Supabase → toujours réseau direct
+  // Supabase → toujours réseau direct, jamais en cache
   if (url.hostname.includes('supabase.co')) {
     e.respondWith(
       fetch(e.request).catch(() =>
@@ -63,15 +78,13 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // index.html → réseau EN PRIORITÉ (pour toujours avoir la dernière version)
-  // Si hors ligne : fallback vers le cache
+  // index.html → RÉSEAU EN PRIORITÉ (toujours la dernière version)
   if (e.request.mode === 'navigate' ||
       url.pathname.endsWith('index.html') ||
       url.pathname.endsWith('/')) {
     e.respondWith(
       fetch(e.request)
         .then(response => {
-          // Mettre à jour le cache avec la version réseau
           if (response && response.status === 200) {
             const clone = response.clone();
             caches.open(CACHE).then(cache => cache.put(e.request, clone));
@@ -83,7 +96,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Autres ressources (icônes, manifest) → cache en priorité
+  // Autres ressources → cache en priorité, réseau en fallback
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
