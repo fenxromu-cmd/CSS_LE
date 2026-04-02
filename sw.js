@@ -4,7 +4,7 @@
 // bump_version.py synchronise les deux automatiquement
 // ============================================================
 
-const VERSION  = 'null';
+const VERSION  = '6.0.0';
 const CACHE    = `lia-v${VERSION}`;
 const ASSETS   = [
   './index.html',
@@ -35,6 +35,12 @@ self.addEventListener('activate', e => {
           })
       ))
       .then(() => self.clients.claim())
+      .then(() => {
+        // Nettoyer le flag de rechargement dans tous les clients
+        self.clients.matchAll({ type: 'window' }).then(clients => {
+          clients.forEach(c => c.postMessage({ type: 'CLEAR_RELOAD_FLAG' }));
+        });
+      })
       .then(() => {
         // Notifier tous les onglets : nouvelle version active
         self.clients.matchAll({ type: 'window' }).then(clients => {
