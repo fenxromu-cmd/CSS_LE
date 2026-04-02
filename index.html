@@ -381,7 +381,7 @@ input[type=number]{width:100%}
     <button class="auth-btn" onclick="sendResetLink()">Envoyer le lien</button>
     <button type="button" onclick="hideResetForm()" style="background:none;border:none;color:#888;font-size:12px;cursor:pointer;text-decoration:underline;font-family:Arial,sans-serif;margin-top:.5rem">← Retour à la connexion</button>
   </div>
-  <div style="margin-top:1rem;font-size:11px;color:rgba(255,255,255,.95);letter-spacing:.5px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.8)">v9.1.0 — 02/04/2026</div>
+  <div style="margin-top:1rem;font-size:11px;color:rgba(255,255,255,.95);letter-spacing:.5px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.8)">vnull — 02/04/2026</div>
 </div>
 
 <div class="container">
@@ -623,6 +623,13 @@ input[type=number]{width:100%}
     <div class="ram-month-label" id="ram-month-label">—</div>
     <button onclick="ramChangeMonth(1)">›</button>
     <button onclick="ramPrintPDF()" title="Imprimer / Exporter en PDF" style="background:rgba(255,255,255,.12);border:none;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">&#128438; PDF</button>
+    <button onclick="ramOpenValidation()" title="Envoyer pour validation" id="btn-ram-send"
+      style="background:#1B8B4E;border:none;color:#fff;padding:6px 14px;border-radius:8px;
+             cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap;display:none">
+      ✉ Validation
+    </button>
+    <div id="ram-validation-badge" style="display:none;padding:4px 10px;border-radius:6px;
+         font-size:11px;font-weight:700;white-space:nowrap"></div>
   </div>
 
   <!-- KPIs -->
@@ -744,6 +751,71 @@ input[type=number]{width:100%}
 </div>
 
 </div><!-- /container -->
+
+<!-- MODAL VALIDATION RAM -->
+<div class="modal-overlay" id="modal-ram-validation">
+<div class="modal" style="max-width:520px">
+  <div class="modal-title">✉ Envoyer le rapport pour validation</div>
+
+  <!-- Statut actuel -->
+  <div id="ram-val-status-block" style="display:none;margin-bottom:1rem;padding:12px 14px;
+       border-radius:10px;font-size:13px;font-weight:700"></div>
+
+  <!-- Formulaire envoi -->
+  <div id="ram-val-form">
+    <div style="font-size:12px;color:var(--txt2);margin-bottom:1rem;line-height:1.6">
+      Le rapport <strong id="ram-val-period">—</strong> sera envoyé au responsable et en copie aux RH pour validation.
+      Les photos de frais seront incluses.
+    </div>
+
+    <div class="field" style="margin-bottom:10px">
+      <label>Email du responsable (signataire)</label>
+      <input type="email" id="ram-val-manager" placeholder="manager@labrosse-equipement.fr"
+        oninput="localStorage.setItem('ram_val_manager',this.value)">
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Email RH (copie)</label>
+      <input type="email" id="ram-val-rh" placeholder="rh@labrosse-equipement.fr"
+        oninput="localStorage.setItem('ram_val_rh',this.value)">
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Message (optionnel)</label>
+      <textarea id="ram-val-msg" rows="2" placeholder="Rapport du mois de mars pour validation..."
+        style="resize:vertical"></textarea>
+    </div>
+
+    <div style="background:var(--bg2);border-radius:8px;padding:10px 12px;font-size:12px;
+         color:var(--txt2);margin-bottom:1rem;line-height:1.6">
+      📎 Le rapport PDF + photos seront accessibles via un lien sécurisé dans LIA.<br>
+      Le responsable pourra approuver ou refuser directement depuis l'application.
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modal-ram-validation')">Annuler</button>
+      <button class="btn btn-blue" onclick="ramSendValidation()" id="btn-ram-send-confirm">
+        ✉ Envoyer la demande
+      </button>
+    </div>
+  </div>
+
+  <!-- Vue validation (pour le responsable) -->
+  <div id="ram-val-approve-block" style="display:none">
+    <div style="font-size:13px;color:var(--txt2);margin-bottom:1rem;line-height:1.6"
+         id="ram-val-approve-info"></div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Commentaire (optionnel)</label>
+      <textarea id="ram-val-comment" rows="2" placeholder="Rapport approuvé / Merci de corriger..."
+        style="resize:vertical"></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modal-ram-validation')">Fermer</button>
+      <button class="btn" onclick="ramValidateDecision('refuse')"
+        style="background:#e53e3e;color:#fff;border-color:#e53e3e">❌ Refuser</button>
+      <button class="btn btn-blue" onclick="ramValidateDecision('approve')">✅ Approuver</button>
+    </div>
+  </div>
+</div>
+</div>
 
 <!-- MODAL GESTION PROFILS -->
 <div class="modal-overlay" id="modal-profiles">
@@ -1231,6 +1303,8 @@ function _applySession(data){
   hideAuthOverlay();
   applyUserProfile(email);
   updateWriteUI();
+  ramUpdateValidationUI();
+  ramCheckValidationLink();
 }
 
 function applyUserProfile(email){
@@ -1729,6 +1803,7 @@ async function load(){
 
     tasks=pm['tasks']||[];
     userProfiles=pm['user_profiles']||{};
+    ramValidations=pm['ram_validations']||{};
     objs=pm['objs']?{...objs,...pm['objs']}:objs;
     if(pm['kits']){
       kits=pm['kits'];
@@ -2761,6 +2836,7 @@ async function ramRender(){
   }
   document.getElementById('ram-month-label').textContent=RAM_MOIS[ramMonth]+' '+ramYear;
   ramRenderCal();ramRenderKpi();ramRenderFrais();ramRenderRecap();ramLoadInfosUI();
+  ramUpdateValidationUI();
 }
 
 function ramChangeMonth(d){
@@ -3411,128 +3487,244 @@ function ramShowLightbox(src, allSrcs){
 
 // ===================== FIN RAM =====================
 
-// ===================== GESTION DES PROFILS =====================
-const TAB_LABELS = {
-  jour:'Journée', semaine:'Semaine', mois:'Mois', annee:'Année',
-  repartition:'Répartition', taches:'Tâches', projets:'Projets',
-  recherche:'Recherche', ram:'RAM'
-};
+// ===================== VALIDATION RAM =====================
+// Structure Supabase : parametres['ram_validations'] = {
+//   'USER_EMAIL|YYYY_M': {
+//     id, userEmail, userName, period, sentAt, status, managerEmail, rhEmail,
+//     message, managerComment, decidedAt, reportHtml, photos
+//   }
+// }
 
-function openProfilesModal(){
-  if(!isAdmin){ requireAdmin(); return; }
-  renderProfilesList();
-  document.getElementById('modal-profiles').classList.add('open');
+let ramValidations = {}; // chargé depuis Supabase
+
+function ramValidationKey(email, year, month){
+  return `${email}|${year}_${month}`;
 }
 
-function closeProfilesModal(){
-  document.getElementById('modal-profiles').classList.remove('open');
+async function ramLoadValidations(){
+  try{
+    const r = await supaGet('parametres');
+    const pm = {};
+    r.forEach(row => { pm[row.id] = row.data; });
+    ramValidations = pm['ram_validations'] || {};
+  }catch(e){ ramValidations = {}; }
 }
 
-function renderProfilesList(){
-  const el = document.getElementById('profiles-list');
-  const entries = Object.entries(userProfiles);
-  if(!entries.length){
-    el.innerHTML='<div style="font-size:13px;color:var(--txt3);padding:8px 0">Aucun profil configuré — tous les utilisateurs voient tous les onglets.</div>';
-    return;
+// Afficher le bouton + badge selon le statut
+function ramUpdateValidationUI(){
+  if(!supaSession) return;
+  const email = supaSession.user?.email?.toLowerCase();
+  const key   = ramValidationKey(email, ramYear, ramMonth);
+  const val   = ramValidations[key];
+
+  const btn   = document.getElementById('btn-ram-send');
+  const badge = document.getElementById('ram-validation-badge');
+  if(!btn||!badge) return;
+
+  btn.style.display   = '';
+  badge.style.display = 'none';
+
+  if(!val){ btn.textContent='✉ Validation'; btn.style.background='#1B8B4E'; return; }
+
+  if(val.status==='pending'){
+    badge.style.display='';
+    badge.style.background='#FFF3CD';badge.style.color='#856404';
+    badge.style.border='1px solid #ffc107';
+    badge.textContent='⏳ En attente';
+    btn.textContent='✉ Renvoyer'; btn.style.background='#888';
+  } else if(val.status==='approved'){
+    badge.style.display='';
+    badge.style.background='#D4EDDA';badge.style.color='#155724';
+    badge.style.border='1px solid #28a745';
+    badge.textContent='✅ Approuvé';
+    btn.style.display='none';
+  } else if(val.status==='refused'){
+    badge.style.display='';
+    badge.style.background='#F8D7DA';badge.style.color='#721c24';
+    badge.style.border='1px solid #f5c6cb';
+    badge.textContent='❌ Refusé';
+    btn.textContent='✉ Renvoyer'; btn.style.background='#C0272D';
   }
-  el.innerHTML = entries.map(([email, profile])=>{
-    const tabs = (profile.tabs||ALL_TABS).map(t=>TAB_LABELS[t]||t).join(', ');
-    const label = profile.label ? `<span style="background:var(--bg2);border-radius:4px;padding:1px 6px;font-size:11px;margin-left:6px">${profile.label}</span>` : '';
-    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700;color:var(--txt)">${email}${label}</div>
-        <div style="font-size:11px;color:var(--txt2);margin-top:2px">Onglets : ${tabs}</div>
-      </div>
-      <button onclick="editProfile('${email}')" style="padding:4px 10px;font-size:12px;border:1.5px solid var(--blue);border-radius:6px;background:var(--blue-bg);color:var(--blue);cursor:pointer;font-weight:700">✎</button>
-      <button onclick="deleteProfile('${email}')" style="padding:4px 10px;font-size:12px;border:1.5px solid #e53e3e;border-radius:6px;background:#FCEBEB;color:#A32D2D;cursor:pointer;font-weight:700">✕</button>
-    </div>`;
-  }).join('');
 }
 
-function editProfile(email){
-  const profile = userProfiles[email];
-  if(!profile) return;
-  document.getElementById('profile-email').value = email;
-  document.getElementById('profile-label').value = profile.label || '';
-  const tabs = profile.tabs || ALL_TABS;
-  document.querySelectorAll('#profile-tabs-check input[type=checkbox]').forEach(cb=>{
-    cb.checked = tabs.includes(cb.value);
-  });
-}
+function ramOpenValidation(){
+  const email = supaSession?.user?.email?.toLowerCase();
+  const key   = ramValidationKey(email, ramYear, ramMonth);
+  const val   = ramValidations[key];
+  const period = `${RAM_MOIS[ramMonth]} ${ramYear}`;
+  const infos  = ramGetInfos();
+  const name   = `${infos.prenom||''} ${infos.nom||''}`.trim()||email;
 
-function clearProfileForm(){
-  document.getElementById('profile-email').value = '';
-  document.getElementById('profile-label').value = '';
-  document.querySelectorAll('#profile-tabs-check input[type=checkbox]').forEach(cb=>cb.checked=true);
-}
+  document.getElementById('ram-val-period').textContent = period;
+  document.getElementById('ram-val-form').style.display = '';
+  document.getElementById('ram-val-approve-block').style.display = 'none';
 
-async function saveProfile(){
-  const email = document.getElementById('profile-email').value.trim().toLowerCase();
-  if(!email){ alert('Email obligatoire'); return; }
-  const label = document.getElementById('profile-label').value.trim();
-  const tabs  = Array.from(document.querySelectorAll('#profile-tabs-check input[type=checkbox]'))
-                     .filter(cb=>cb.checked).map(cb=>cb.value);
-  if(!tabs.length){ alert('Sélectionnez au moins un onglet'); return; }
-
-  userProfiles[email] = { tabs, label };
-  await supaUpsert('parametres','user_profiles', userProfiles);
-  renderProfilesList();
-  clearProfileForm();
-
-  // Appliquer immédiatement si l'utilisateur concerné est connecté
-  const currentEmail = supaSession?.user?.email?.toLowerCase();
-  if(currentEmail === email) applyUserProfile(currentEmail);
-
-  setStatus('✔ Profil enregistré','#0F6E56');
-}
-
-async function deleteProfile(email){
-  if(!confirm(`Supprimer le profil de ${email} ?`)) return;
-  delete userProfiles[email];
-  await supaUpsert('parametres','user_profiles', userProfiles);
-  renderProfilesList();
-
-  // Si l'utilisateur concerné est connecté, mettre à jour
-  const currentEmail = supaSession?.user?.email?.toLowerCase();
-  if(currentEmail === email) applyUserProfile(currentEmail);
-}
-
-const APP_VERSION = '9.1.0';
-const APP_BUILD_DATE = '02/04/2026';
-
-// Détection immédiate du token de reset AVANT tout chargement
-// Supabase génère deux formats selon la version :
-//   Format A (ancien) : #access_token=xxx&type=recovery
-//   Format B (récent) : ?token_hash=xxx&type=recovery
-(function detectResetToken(){
-  let token = null;
-  let isRecovery = false;
-
-  // Format A : fragment (#)
-  const hash = location.hash;
-  if(hash.includes('type=recovery')){
-    const p = new URLSearchParams(hash.slice(1));
-    if(p.get('access_token')){ token = p.get('access_token'); isRecovery = true; }
+  // Statut actuel
+  const statusBlock = document.getElementById('ram-val-status-block');
+  if(val){
+    statusBlock.style.display = '';
+    const colors = {pending:'#FFF3CD',approved:'#D4EDDA',refused:'#F8D7DA'};
+    const labels = {pending:'⏳ En attente de validation',approved:'✅ Approuvé',refused:'❌ Refusé'};
+    statusBlock.style.background = colors[val.status]||'#f0f2f5';
+    statusBlock.style.border = '1px solid '+( val.status==='approved'?'#28a745':val.status==='refused'?'#f5c6cb':'#ffc107');
+    statusBlock.style.color = val.status==='approved'?'#155724':val.status==='refused'?'#721c24':'#856404';
+    statusBlock.textContent = labels[val.status]||val.status;
+    if(val.managerComment) statusBlock.textContent += ` — "${val.managerComment}"`;
+  } else {
+    statusBlock.style.display = 'none';
   }
 
-  // Format B : query string (?)
-  const search = location.search;
-  if(!isRecovery && search.includes('type=recovery')){
-    const p = new URLSearchParams(search.slice(1));
-    if(p.get('token_hash')){ token = p.get('token_hash'); isRecovery = true; }
-    // Parfois access_token est aussi dans la query string
-    if(!token && p.get('access_token')){ token = p.get('access_token'); isRecovery = true; }
+  // Préremplir emails sauvegardés
+  const mgr = localStorage.getItem('ram_val_manager')||'';
+  const rh  = localStorage.getItem('ram_val_rh')||'';
+  document.getElementById('ram-val-manager').value = mgr;
+  document.getElementById('ram-val-rh').value = rh;
+  document.getElementById('ram-val-msg').value = `Rapport d'activité de ${name} — ${period}`;
+
+  // Si responsable connecté, afficher vue approbation
+  if(val && val.status==='pending' && email===val.managerEmail?.toLowerCase()){
+    document.getElementById('ram-val-form').style.display = 'none';
+    document.getElementById('ram-val-approve-block').style.display = '';
+    document.getElementById('ram-val-approve-info').innerHTML =
+      `Rapport de <strong>${val.userName||val.userEmail}</strong> pour <strong>${period}</strong><br>
+       Envoyé le ${new Date(val.sentAt).toLocaleDateString('fr-FR')}
+       ${val.message?`<br><em>${val.message}</em>`:''}`;
   }
 
-  if(isRecovery && token){
-    sessionStorage.setItem('reset_token', token);
-    sessionStorage.setItem('reset_type', search.includes('token_hash') ? 'token_hash' : 'access_token');
-    // Nettoyer l'URL
-    history.replaceState(null, '', location.pathname);
-  }
-})();
+  document.getElementById('modal-ram-validation').classList.add('open');
+}
 
-load();
-</script>
-</body>
-</html>
+async function ramSendValidation(){
+  const managerEmail = document.getElementById('ram-val-manager').value.trim().toLowerCase();
+  const rhEmail      = document.getElementById('ram-val-rh').value.trim().toLowerCase();
+  const message      = document.getElementById('ram-val-msg').value.trim();
+
+  if(!managerEmail){ alert('Email du responsable requis'); return; }
+
+  const email  = supaSession?.user?.email?.toLowerCase();
+  const infos  = ramGetInfos();
+  const name   = `${infos.prenom||''} ${infos.nom||''}`.trim()||email;
+  const period = `${RAM_MOIS[ramMonth]} ${ramYear}`;
+  const key    = ramValidationKey(email, ramYear, ramMonth);
+
+  const btn = document.getElementById('btn-ram-send-confirm');
+  btn.disabled=true; btn.textContent='Envoi…';
+
+  // Collecter les photos de frais du mois
+  const photos = [];
+  const dim = new Date(ramYear, ramMonth+1, 0).getDate();
+  for(let d=1;d<=dim;d++){
+    const dd = ramGetDayData(ramFmtKey(ramYear,ramMonth,d));
+    if(dd?.photos) photos.push(...dd.photos.map(p=>({...p, jour:d})));
+    else if(dd?.photo) photos.push({src:dd.photo, jour:d});
+  }
+
+  // Générer le HTML du rapport
+  const reportHtml = ramBuildReportHtml(period, infos, name);
+
+  // Enregistrer dans Supabase
+  const valData = {
+    id: key,
+    userEmail: email,
+    userName: name,
+    period,
+    sentAt: new Date().toISOString(),
+    status: 'pending',
+    managerEmail,
+    rhEmail: rhEmail||null,
+    message,
+    reportHtml,
+    photos: photos.slice(0,10), // max 10 photos
+    managerComment: null,
+    decidedAt: null
+  };
+
+  ramValidations[key] = valData;
+  await supaUpsert('parametres','ram_validations', ramValidations);
+
+  // Envoyer email via Supabase Edge Function (ou afficher lien manuel)
+  ramSendNotificationEmail(valData);
+
+  setStatus(`✔ Demande de validation envoyée à ${managerEmail}`,'#0F6E56');
+  ramUpdateValidationUI();
+  closeModal('modal-ram-validation');
+  btn.disabled=false; btn.textContent='✉ Envoyer la demande';
+}
+
+async function ramValidateDecision(decision){
+  const email = supaSession?.user?.email?.toLowerCase();
+  // Trouver la validation en attente pour cet email manager
+  const entry = Object.values(ramValidations).find(v =>
+    v.managerEmail?.toLowerCase()===email && v.status==='pending'
+  );
+  if(!entry){ alert('Aucune validation en attente trouvée'); return; }
+
+  const comment = document.getElementById('ram-val-comment').value.trim();
+  entry.status   = decision;
+  entry.managerComment = comment;
+  entry.decidedAt = new Date().toISOString();
+
+  ramValidations[entry.id] = entry;
+  await supaUpsert('parametres','ram_validations', ramValidations);
+
+  // Notifier l'utilisateur et les RH
+  ramSendDecisionEmail(entry, decision);
+
+  ramUpdateValidationUI();
+  closeModal('modal-ram-validation');
+  setStatus(decision==='approve'?'✅ Rapport approuvé !':'❌ Rapport refusé',
+            decision==='approve'?'#0F6E56':'#C0272D');
+}
+
+// ── Email Office 365 SMTP (Supabase Edge Function send-email-smtp) ─────────────
+async function ramCallEmailSmtp(to,cc,subject,htmlBody){
+  try{
+    const r=await fetch(`${SUPA_URL}/functions/v1/send-email-smtp`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json',
+               'Authorization':'Bearer '+(supaSession?.access_token||''),
+               'apikey':SUPA_KEY},
+      body:JSON.stringify({to,cc:cc||'',subject,html:htmlBody})
+    });
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Erreur SMTP');
+    return true;
+  }catch(e){console.error('SMTP:',e);return false;}
+}
+
+async function ramSendNotificationEmail(val){
+  const appUrl=window.location.origin+window.location.pathname;
+  const link=`${appUrl}?ram_validate=${encodeURIComponent(val.id)}`;
+  const photos=(val.photos||[]).slice(0,10);
+  const photosHtml=photos.length?`<h3 style="color:#1A2B4A;margin:16px 0 8px;font-size:14px">Photos de frais (${photos.length})</h3><div style="display:flex;flex-wrap:wrap;gap:10px">${photos.map((p,i)=>`<div style="text-align:center"><img src="${p.src}" style="max-width:180px;max-height:140px;border-radius:6px;border:1px solid #ddd"><div style="font-size:10px;color:#888">Jour ${p.jour||i+1}</div></div>`).join('')}</div>`:'';
+  const subject=`[Validation RAM] ${val.period} — ${val.userName}`;
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Arial;margin:0;background:#f0f2f5"><div style="max-width:600px;margin:20px auto"><div style="background:#1A2B4A;padding:20px;border-radius:10px 10px 0 0"><h1 style="color:#fff;font-size:18px;margin:0">LIA &mdash; Rapport pour validation</h1><div style="color:rgba(255,255,255,.6);font-size:12px">Groupe Labrosse &Eacute;quipement</div></div><div style="background:#fff;border:1px solid #ddd;border-top:none;padding:24px;border-radius:0 0 10px 10px"><p>Bonjour,</p><p><strong>${val.userName}</strong> vous soumet son <strong>rapport de ${val.period}</strong> pour validation.</p>${val.message?`<div style="background:#f8f9fa;border-left:4px solid #C0272D;padding:12px;margin:12px 0;font-style:italic">${val.message}</div>`:''}<div style="text-align:center;margin:24px 0"><a href="${link}" style="background:#1B8B4E;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">&#10003; Valider le rapport</a></div><p style="font-size:11px;color:#aaa;text-align:center">Lien direct : <span style="color:#1B8B4E">${link}</span></p>${photosHtml}<hr style="border:none;border-top:1px solid #eee;margin:20px 0"><p style="font-size:11px;color:#aaa">LIA &mdash; Groupe Labrosse &Eacute;quipement</p></div></div></body></html>`;
+  const sent=await ramCallEmailSmtp(val.managerEmail,val.rhEmail||'',subject,html);
+  if(!sent){
+    const body=`Bonjour,
+
+${val.userName} soumet son rapport de ${val.period}.
+
+Lien de validation : ${link}
+
+${val.message||''}`;
+    window.open(`mailto:${val.managerEmail}${val.rhEmail?','+val.rhEmail:''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,'_blank');
+    setStatus('⚠ Email via client mail (SMTP indisponible)','#e8a030');
+  } else {
+    setStatus('✅ Email envoyé à '+val.managerEmail,'#0F6E56');
+  }
+}
+
+async function ramSendDecisionEmail(val,decision){
+  const label=decision==='approve'?'APPROUVÉ ✅':'REFUSÉ ❌';
+  const color=decision==='approve'?'#1B8B4E':'#C0272D';
+  const to=val.rhEmail?`${val.userEmail},${val.rhEmail}`:val.userEmail;
+  const subject=`[RAM ${decision==='approve'?'Approuvé':'Refusé'}] ${val.period} — ${val.userName}`;
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Arial;margin:0;background:#f0f2f5"><div style="max-width:600px;margin:20px auto"><div style="background:${color};padding:20px;border-radius:10px 10px 0 0"><h1 style="color:#fff;font-size:18px;margin:0">Rapport ${label}</h1><div style="color:rgba(255,255,255,.7);font-size:12px">Groupe Labrosse &Eacute;quipement</div></div><div style="background:#fff;border:1px solid #ddd;border-top:none;padding:24px;border-radius:0 0 10px 10px"><p>Bonjour,</p><p>Le rapport de <strong>${val.userName}</strong> pour <strong>${val.period}</strong> a &eacute;t&eacute; <strong style="color:${color}">${label}</strong> par ${val.managerEmail}.</p>${val.managerComment?`<div style="background:#f8f9fa;border-left:4px solid ${color};padding:12px;margin:12px 0;font-style:italic">${val.managerComment}</div>`:''}<p style="font-size:12px;color:#888">D&eacute;cision du ${val.decidedAt?new Date(val.decidedAt).toLocaleDateString('fr-FR'):''}</p><hr style="border:none;border-top:1px solid #eee;margin:20px 0"><p style="font-size:11px;color:#aaa">LIA &mdash; Groupe Labrosse &Eacute;quipement</p></div></div></body></html>`;
+  const sent=await ramCallEmailSmtp(to,'',subject,html);
+  if(!sent){
+    window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`Rapport de ${val.userName} pour ${val.period} : ${label}
+${val.managerComment||''}`)}`,'_blank');
+  }
+}
+
