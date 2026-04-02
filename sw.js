@@ -4,7 +4,11 @@
 // bump_version.py met à jour les deux fichiers simultanément
 // ============================================================
 
+<<<<<<< HEAD
 const VERSION  = '8.0.0';          // ← synchronisé avec APP_VERSION
+=======
+const VERSION  = '7.0.0';          // ← synchronisé avec APP_VERSION
+>>>>>>> 40ad5fe8350205bc1b616b8b27a5da848f12274e
 const CACHE    = `lia-v${VERSION}`;
 const ASSETS   = [
   './index.html',
