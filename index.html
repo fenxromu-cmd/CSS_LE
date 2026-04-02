@@ -381,7 +381,7 @@ input[type=number]{width:100%}
     <button class="auth-btn" onclick="sendResetLink()">Envoyer le lien</button>
     <button type="button" onclick="hideResetForm()" style="background:none;border:none;color:#888;font-size:12px;cursor:pointer;text-decoration:underline;font-family:Arial,sans-serif;margin-top:.5rem">← Retour à la connexion</button>
   </div>
-  <div style="margin-top:1rem;font-size:11px;color:rgba(255,255,255,.95);letter-spacing:.5px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.8)">v8.0.2 — 02/04/2026</div>
+  <div style="margin-top:1rem;font-size:11px;color:rgba(255,255,255,.95);letter-spacing:.5px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.8)">v8.1.0 — 02/04/2026</div>
 </div>
 
 <div class="container">
@@ -409,6 +409,7 @@ input[type=number]{width:100%}
     <button class="nav-btn" id="nav-next" onclick="shiftDate(1)">&#8250;</button>
     <button class="btn" onclick="goToday()">Aujourd'hui</button>
     <button class="btn btn-blue" id="btn-top-add" onclick="topAdd()">+ Ajouter</button>
+    <button class="btn" id="btn-admin-profiles" onclick="openProfilesModal()" style="display:none;font-size:12px;padding:7px 12px" title="Gérer les profils utilisateurs">👥 Profils</button>
     <div id="user-badge" style="display:none;align-items:center;gap:7px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:5px 11px;font-size:13px;color:var(--txt)"><span style="width:28px;height:28px;border-radius:50%;background:#C0272D;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0" id="user-avatar">?</span><div style="line-height:1.3"><div style="font-weight:700;font-size:12px;color:var(--txt)" id="user-name">—</div><div style="font-size:10px;color:var(--txt3)" id="user-role">—</div></div></div>
     <button class="btn" id="btn-logout" onclick="logout()" title="Se déconnecter" style="padding:9px 12px;color:var(--txt2)">&#9211;</button>
   </div>
@@ -743,6 +744,54 @@ input[type=number]{width:100%}
 </div>
 
 </div><!-- /container -->
+
+<!-- MODAL GESTION PROFILS -->
+<div class="modal-overlay" id="modal-profiles">
+<div class="modal" style="max-width:620px">
+  <div class="modal-title">👥 Gestion des profils utilisateurs</div>
+  <div style="font-size:12px;color:var(--txt2);margin-bottom:1rem;line-height:1.6">
+    Définissez pour chaque email les onglets accessibles. Sans profil défini, l'utilisateur voit tous les onglets.
+  </div>
+
+  <!-- Liste des profils existants -->
+  <div id="profiles-list" style="margin-bottom:1rem;max-height:280px;overflow-y:auto"></div>
+
+  <!-- Ajout d'un nouveau profil -->
+  <div style="background:var(--bg2);border-radius:10px;padding:14px;border:1px solid var(--border)">
+    <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:10px">Ajouter / modifier un profil</div>
+    <div class="field" style="margin-bottom:8px">
+      <label>Email utilisateur</label>
+      <input type="email" id="profile-email" placeholder="ex: jean.dupont@labrosse-equipement.fr">
+    </div>
+    <div class="field" style="margin-bottom:8px">
+      <label>Libellé (optionnel)</label>
+      <input type="text" id="profile-label" placeholder="ex: Commercial Sud">
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Onglets autorisés</label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px" id="profile-tabs-check">
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:400;cursor:pointer"><input type="checkbox" value="jour" checked> Journée</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:400;cursor:pointer"><input type="checkbox" value="semaine" checked> Semaine</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:400;cursor:pointer"><input type="checkbox" value="mois" checked> Mois</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:400;cursor:pointer"><input type="checkbox" value="annee" checked> Année</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:400;cursor:pointer"><input type="checkbox" value="repartition" checked> Répartition</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:400;cursor:pointer"><input type="checkbox" value="taches" checked> Tâches</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:400;cursor:pointer"><input type="checkbox" value="projets" checked> Projets</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:400;cursor:pointer"><input type="checkbox" value="recherche" checked> Recherche</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:400;cursor:pointer"><input type="checkbox" value="ram" checked> RAM</label>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-blue" onclick="saveProfile()" style="flex:1">Enregistrer le profil</button>
+      <button class="btn" onclick="clearProfileForm()">Réinitialiser</button>
+    </div>
+  </div>
+
+  <div class="modal-btns">
+    <button class="btn btn-blue" onclick="closeProfilesModal()">Fermer</button>
+  </div>
+</div>
+</div>
 
 <!-- MODAL KIT -->
 <div class="modal-overlay" id="modal-kit">
@@ -1163,16 +1212,54 @@ const WRITERS = new Set([
   'romuald.alivon@labrosse-equipement.fr',
   'maxime.rocamora@labrosse-equipement.fr'
 ]);
+// Email administrateur (peut gérer les profils)
+const ADMIN_EMAIL = 'fenxromu@gmail.com';
+const ALL_TABS = ['jour','semaine','mois','annee','repartition','taches','projets','recherche','ram'];
 let canWrite = false;
+let isAdmin  = false;
 let supaSession = null;
+let userProfiles = {};  // { 'email': { tabs: [...], label: '...' } }
+let currentUserTabs = ALL_TABS; // onglets visibles pour l'utilisateur connecté
 
 // ── Helpers session ──────────────────────────────────────────────────────────
 function _applySession(data){
   supaSession = data;
   if(data.refresh_token) sessionStorage.setItem('supa_rt', data.refresh_token);
-  canWrite = WRITERS.has(data.user?.email?.toLowerCase());
+  const email = data.user?.email?.toLowerCase();
+  canWrite = WRITERS.has(email);
+  isAdmin  = (email === ADMIN_EMAIL);
   hideAuthOverlay();
+  applyUserProfile(email);
   updateWriteUI();
+}
+
+function applyUserProfile(email){
+  if(!email) return;
+  const profile = userProfiles[email];
+  if(isAdmin || !profile){
+    // Admin ou pas de profil = tous les onglets
+    currentUserTabs = ALL_TABS;
+  } else {
+    currentUserTabs = profile.tabs || ALL_TABS;
+  }
+  applyTabVisibility();
+}
+
+function applyTabVisibility(){
+  const tabEls = document.querySelectorAll('.tab');
+  const names  = ['jour','semaine','mois','annee','repartition','taches','projets','recherche','ram'];
+  tabEls.forEach((t,i) => {
+    const visible = currentUserTabs.includes(names[i]);
+    t.style.display = visible ? '' : 'none';
+  });
+  // Si l'onglet actif n'est plus visible, aller au premier disponible
+  if(!currentUserTabs.includes(activeTab)){
+    const first = currentUserTabs[0] || 'jour';
+    switchTab(first);
+  }
+  // Bouton admin profils
+  const adminBtn = document.getElementById('btn-admin-profiles');
+  if(adminBtn) adminBtn.style.display = isAdmin ? '' : 'none';
 }
 
 // ── Réinitialisation mot de passe ────────────────────────────────────────────
@@ -1641,6 +1728,7 @@ async function load(){
     const pm={};params.forEach(r=>{pm[r.id]=r.data;});
 
     tasks=pm['tasks']||[];
+    userProfiles=pm['user_profiles']||{};
     objs=pm['objs']?{...objs,...pm['objs']}:objs;
     if(pm['kits']){
       kits=pm['kits'];
@@ -3323,7 +3411,93 @@ function ramShowLightbox(src, allSrcs){
 
 // ===================== FIN RAM =====================
 
-const APP_VERSION = '8.0.2';
+// ===================== GESTION DES PROFILS =====================
+const TAB_LABELS = {
+  jour:'Journée', semaine:'Semaine', mois:'Mois', annee:'Année',
+  repartition:'Répartition', taches:'Tâches', projets:'Projets',
+  recherche:'Recherche', ram:'RAM'
+};
+
+function openProfilesModal(){
+  if(!isAdmin){ requireAdmin(); return; }
+  renderProfilesList();
+  document.getElementById('modal-profiles').classList.add('open');
+}
+
+function closeProfilesModal(){
+  document.getElementById('modal-profiles').classList.remove('open');
+}
+
+function renderProfilesList(){
+  const el = document.getElementById('profiles-list');
+  const entries = Object.entries(userProfiles);
+  if(!entries.length){
+    el.innerHTML='<div style="font-size:13px;color:var(--txt3);padding:8px 0">Aucun profil configuré — tous les utilisateurs voient tous les onglets.</div>';
+    return;
+  }
+  el.innerHTML = entries.map(([email, profile])=>{
+    const tabs = (profile.tabs||ALL_TABS).map(t=>TAB_LABELS[t]||t).join(', ');
+    const label = profile.label ? `<span style="background:var(--bg2);border-radius:4px;padding:1px 6px;font-size:11px;margin-left:6px">${profile.label}</span>` : '';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:var(--txt)">${email}${label}</div>
+        <div style="font-size:11px;color:var(--txt2);margin-top:2px">Onglets : ${tabs}</div>
+      </div>
+      <button onclick="editProfile('${email}')" style="padding:4px 10px;font-size:12px;border:1.5px solid var(--blue);border-radius:6px;background:var(--blue-bg);color:var(--blue);cursor:pointer;font-weight:700">✎</button>
+      <button onclick="deleteProfile('${email}')" style="padding:4px 10px;font-size:12px;border:1.5px solid #e53e3e;border-radius:6px;background:#FCEBEB;color:#A32D2D;cursor:pointer;font-weight:700">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function editProfile(email){
+  const profile = userProfiles[email];
+  if(!profile) return;
+  document.getElementById('profile-email').value = email;
+  document.getElementById('profile-label').value = profile.label || '';
+  const tabs = profile.tabs || ALL_TABS;
+  document.querySelectorAll('#profile-tabs-check input[type=checkbox]').forEach(cb=>{
+    cb.checked = tabs.includes(cb.value);
+  });
+}
+
+function clearProfileForm(){
+  document.getElementById('profile-email').value = '';
+  document.getElementById('profile-label').value = '';
+  document.querySelectorAll('#profile-tabs-check input[type=checkbox]').forEach(cb=>cb.checked=true);
+}
+
+async function saveProfile(){
+  const email = document.getElementById('profile-email').value.trim().toLowerCase();
+  if(!email){ alert('Email obligatoire'); return; }
+  const label = document.getElementById('profile-label').value.trim();
+  const tabs  = Array.from(document.querySelectorAll('#profile-tabs-check input[type=checkbox]'))
+                     .filter(cb=>cb.checked).map(cb=>cb.value);
+  if(!tabs.length){ alert('Sélectionnez au moins un onglet'); return; }
+
+  userProfiles[email] = { tabs, label };
+  await supaUpsert('parametres','user_profiles', userProfiles);
+  renderProfilesList();
+  clearProfileForm();
+
+  // Appliquer immédiatement si l'utilisateur concerné est connecté
+  const currentEmail = supaSession?.user?.email?.toLowerCase();
+  if(currentEmail === email) applyUserProfile(currentEmail);
+
+  setStatus('✔ Profil enregistré','#0F6E56');
+}
+
+async function deleteProfile(email){
+  if(!confirm(`Supprimer le profil de ${email} ?`)) return;
+  delete userProfiles[email];
+  await supaUpsert('parametres','user_profiles', userProfiles);
+  renderProfilesList();
+
+  // Si l'utilisateur concerné est connecté, mettre à jour
+  const currentEmail = supaSession?.user?.email?.toLowerCase();
+  if(currentEmail === email) applyUserProfile(currentEmail);
+}
+
+const APP_VERSION = '8.1.0';
 const APP_BUILD_DATE = '02/04/2026';
 
 // Détection immédiate du token de reset AVANT tout chargement
