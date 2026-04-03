@@ -4,7 +4,7 @@
 // bump_version.py synchronise les deux automatiquement
 // ============================================================
 
-const VERSION  = 'null';
+const VERSION  = '?';
 const CACHE    = `lia-v${VERSION}`;
 const ASSETS   = [
   './index.html',
