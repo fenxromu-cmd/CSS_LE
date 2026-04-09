@@ -1,13 +1,13 @@
 // ============================================================
-// sw.js — Service Worker avec mise à jour et purge de cache
-// VERSION doit correspondre à APP_VERSION dans index.html
-// bump_version.py synchronise les deux automatiquement
+// sw.js — Service Worker LIA
+// VERSION = timestamp du dernier build (change à chaque déploiement)
 // ============================================================
 
-const VERSION  = '?';
-const CACHE    = `lia-v${VERSION}`;
+const VERSION  = '202604091157';
+const CACHE    = `lia-${VERSION}`;
 const ASSETS   = [
   './index.html',
+  './app.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
@@ -22,7 +22,7 @@ self.addEventListener('install', e => {
   );
 });
 
-// ── Activation : PURGER tous les anciens caches ──────────────
+// ── Activation : purger tous les anciens caches ──────────────
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
@@ -36,12 +36,6 @@ self.addEventListener('activate', e => {
       ))
       .then(() => self.clients.claim())
       .then(() => {
-        // Nettoyer le flag de rechargement dans tous les clients
-        self.clients.matchAll({ type: 'window' }).then(clients => {
-          clients.forEach(c => c.postMessage({ type: 'CLEAR_RELOAD_FLAG' }));
-        });
-      })
-      .then(() => {
         // Notifier tous les onglets : nouvelle version active
         self.clients.matchAll({ type: 'window' }).then(clients => {
           clients.forEach(client =>
@@ -52,13 +46,11 @@ self.addEventListener('activate', e => {
   );
 });
 
-// ── Message depuis la page : forcer l'activation immédiate ───
+// ── Message depuis la page ────────────────────────────────────
 self.addEventListener('message', e => {
   if (e.data?.type === 'SKIP_WAITING') {
-    console.log('[SW] SKIP_WAITING reçu — activation forcée');
     self.skipWaiting();
   }
-  // Purge complète du cache sur demande
   if (e.data?.type === 'CLEAR_CACHE') {
     caches.keys().then(keys =>
       Promise.all(keys.map(k => caches.delete(k)))
@@ -72,7 +64,7 @@ self.addEventListener('message', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Supabase → toujours réseau direct, jamais en cache
+  // Supabase → réseau direct, jamais en cache
   if (url.hostname.includes('supabase.co')) {
     e.respondWith(
       fetch(e.request).catch(() =>
@@ -84,9 +76,10 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // index.html → RÉSEAU EN PRIORITÉ (toujours la dernière version)
+  // index.html et app.html → réseau en priorité (toujours la dernière version)
   if (e.request.mode === 'navigate' ||
       url.pathname.endsWith('index.html') ||
+      url.pathname.endsWith('app.html') ||
       url.pathname.endsWith('/')) {
     e.respondWith(
       fetch(e.request)
@@ -97,7 +90,7 @@ self.addEventListener('fetch', e => {
           }
           return response;
         })
-        .catch(() => caches.match('./index.html'))
+        .catch(() => caches.match(e.request))
     );
     return;
   }
