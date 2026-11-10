@@ -3,7 +3,7 @@
 // VERSION = timestamp du dernier build (change à chaque déploiement)
 // ============================================================
 
-const VERSION  = '202604091157';
+const VERSION  = '202611100830';
 const CACHE    = `lia-${VERSION}`;
 const ASSETS   = [
   './index.html',
